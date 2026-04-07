@@ -29,25 +29,32 @@ async def _send_api_message(host: str, port: int, payload: dict) -> None:
 
 async def _watch_api(host: str, port: int) -> None:
     uri = f"ws://{host}:{port}"
+    last_debug: dict | None = None
     async with websockets.connect(uri) as websocket:
         async for raw in websocket:
             payload = json.loads(raw)
             kind = payload.get("type")
             if kind == "debug_metrics":
-                print(
-                    json.dumps(
-                        {
-                            "state": payload.get("controller_state"),
-                            "gesture": payload.get("active_gesture"),
-                            "hand": payload.get("hand"),
-                            "pinch": round(float(payload.get("pinch_strength", 0.0)), 3),
-                            "grab": round(float(payload.get("grab_strength", 0.0)), 3),
-                            "fingers": payload.get("finger_count"),
-                            "speed": round(float(payload.get("palm_speed", 0.0)), 2),
-                            "pinch_hold_emitted": payload.get("pinch_hold_emitted"),
-                        }
-                    )
-                )
+                drag_delta = payload.get("drag_delta") or {}
+                compact = {
+                    "state": payload.get("controller_state"),
+                    "gesture": payload.get("active_gesture"),
+                    "hand": payload.get("hand"),
+                    "pinch": round(float(payload.get("pinch_strength", 0.0)), 3),
+                    "grab": round(float(payload.get("grab_strength", 0.0)), 3),
+                    "fingers": payload.get("finger_count"),
+                    "speed": round(float(payload.get("palm_speed", 0.0)), 1),
+                    "pinch_hold_emitted": payload.get("pinch_hold_emitted"),
+                    "drag_active": payload.get("drag_active"),
+                    "drag_axis": payload.get("drag_axis"),
+                    "drag_direction": payload.get("drag_direction"),
+                    "drag_dx": round(float(drag_delta.get("x", 0.0)), 1),
+                    "drag_dy": round(float(drag_delta.get("y", 0.0)), 1),
+                    "drag_axis_value": round(float(payload.get("drag_axis_value", 0.0)), 1),
+                }
+                if compact != last_debug:
+                    print(json.dumps(compact))
+                    last_debug = compact
             else:
                 print(json.dumps(payload))
 

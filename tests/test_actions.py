@@ -19,6 +19,9 @@ class FakeRunner:
     def execute_hotkey(self, key: str, modifiers: list[str], key_action: str = "tap") -> None:
         self.calls.append(("hotkey", (key, tuple(modifiers), key_action)))
 
+    def execute_scroll(self, amount: float, *, axis: str = "vertical", natural: bool = True) -> None:
+        self.calls.append(("scroll", (round(amount, 3), axis, natural)))
+
 
 class ActionRouterTests(unittest.TestCase):
     def test_routes_shell_and_hotkey(self) -> None:
@@ -47,6 +50,28 @@ class ActionRouterTests(unittest.TestCase):
                 ("hotkey", ("space", ("command",), "tap")),
             ],
         )
+
+    def test_routes_vertical_drag_update_to_scroll(self) -> None:
+        runner = FakeRunner()
+        router = ActionRouter(
+            {
+                "drag_update": [
+                    ActionSpec(type="scroll_event", scroll_axis="vertical", scroll_scale=0.4, scroll_natural=True)
+                ]
+            },
+            runner=runner,
+        )
+        router.route(
+            PublicEvent(
+                name="drag_update",
+                timestamp=1.0,
+                hand="left",
+                phase="update",
+                metrics=metric_snapshot(),
+                metadata={"axis": "y", "direction": "up", "axis_value": 48.0, "delta_value": 12.5},
+            )
+        )
+        self.assertEqual(runner.calls, [("scroll", (5.0, "vertical", True))])
 
 
 if __name__ == "__main__":

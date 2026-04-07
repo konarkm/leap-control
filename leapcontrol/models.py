@@ -200,6 +200,12 @@ class DebugSnapshot:
     pinch_hold_emitted: bool
     open_palm_since: float | None
     open_palm_fired: bool
+    drag_active: bool
+    drag_axis: str
+    drag_direction: str
+    drag_anchor_position: Vector3
+    drag_delta: Vector3
+    drag_axis_value: float
 
     def to_message(self) -> dict[str, Any]:
         return {
@@ -219,6 +225,12 @@ class DebugSnapshot:
             "pinch_hold_emitted": self.pinch_hold_emitted,
             "open_palm_since": self.open_palm_since,
             "open_palm_fired": self.open_palm_fired,
+            "drag_active": self.drag_active,
+            "drag_axis": self.drag_axis,
+            "drag_direction": self.drag_direction,
+            "drag_anchor_position": self.drag_anchor_position.to_dict(),
+            "drag_delta": self.drag_delta.to_dict(),
+            "drag_axis_value": self.drag_axis_value,
         }
 
 

@@ -43,9 +43,23 @@ class ActionRunner(Protocol):
 
     def execute_hotkey(self, key: str, modifiers: list[str], key_action: str = "tap") -> None: ...
 
+    def execute_scroll(
+        self,
+        amount: float,
+        *,
+        axis: str = "vertical",
+        natural: bool = True,
+    ) -> None: ...
+
 
 @dataclass(slots=True)
 class SubprocessActionRunner:
+    _scroll_remainder: dict[str, float] | None = None
+
+    def __post_init__(self) -> None:
+        if self._scroll_remainder is None:
+            self._scroll_remainder = {"vertical": 0.0, "horizontal": 0.0}
+
     def execute_shell(self, command: str, event: PublicEvent) -> None:
         env = {
             **dict(os.environ),
@@ -90,6 +104,54 @@ class SubprocessActionRunner:
         else:
             raise ValueError(f"Unsupported key_action: {key_action}")
 
+    def execute_scroll(
+        self,
+        amount: float,
+        *,
+        axis: str = "vertical",
+        natural: bool = True,
+    ) -> None:
+        if amount == 0:
+            return
+        signed_amount = -amount if natural else amount
+        assert self._scroll_remainder is not None
+        bucket = self._scroll_remainder.get(axis, 0.0) + signed_amount
+        pixel_delta = int(bucket)
+        self._scroll_remainder[axis] = bucket - pixel_delta
+        if pixel_delta == 0:
+            return
+        if axis == "vertical":
+            event = Quartz.CGEventCreateScrollWheelEvent(
+                None,
+                Quartz.kCGScrollEventUnitPixel,
+                1,
+                pixel_delta,
+            )
+            Quartz.CGEventSetIntegerValueField(event, Quartz.kCGScrollWheelEventPointDeltaAxis1, pixel_delta)
+            Quartz.CGEventSetIntegerValueField(
+                event,
+                Quartz.kCGScrollWheelEventFixedPtDeltaAxis1,
+                pixel_delta << 16,
+            )
+        elif axis == "horizontal":
+            event = Quartz.CGEventCreateScrollWheelEvent(
+                None,
+                Quartz.kCGScrollEventUnitPixel,
+                2,
+                0,
+                pixel_delta,
+            )
+            Quartz.CGEventSetIntegerValueField(event, Quartz.kCGScrollWheelEventPointDeltaAxis2, pixel_delta)
+            Quartz.CGEventSetIntegerValueField(
+                event,
+                Quartz.kCGScrollWheelEventFixedPtDeltaAxis2,
+                pixel_delta << 16,
+            )
+        else:
+            raise ValueError(f"Unsupported scroll axis: {axis}")
+        Quartz.CGEventSetIntegerValueField(event, Quartz.kCGScrollWheelEventIsContinuous, 1)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+
 
 class ActionRouter:
     def __init__(self, routes: dict[str, list[ActionSpec]], runner: ActionRunner | None = None):
@@ -102,3 +164,21 @@ class ActionRouter:
                 self.runner.execute_shell(action.command, event)
             elif action.type in {"hotkey", "key_event"} and action.key:
                 self.runner.execute_hotkey(action.key, action.modifiers, action.key_action)
+            elif action.type == "scroll_event":
+                metadata = event.metadata or {}
+                axis = metadata.get("axis")
+                allowed_axes = {None, action.scroll_axis}
+                if action.scroll_axis == "vertical":
+                    allowed_axes.add("y")
+                elif action.scroll_axis == "horizontal":
+                    allowed_axes.add("x")
+                if axis not in allowed_axes:
+                    continue
+                raw_delta = float(metadata.get("delta_value", 0.0))
+                amount = raw_delta * action.scroll_scale
+                if amount:
+                    self.runner.execute_scroll(
+                        amount,
+                        axis=action.scroll_axis,
+                        natural=action.scroll_natural,
+                    )

@@ -51,6 +51,24 @@ class StateMachineTests(unittest.TestCase):
         events = self.machine.handle_internal(make_internal("pinch_tap", 0.4))
         self.assertEqual(events, [])
 
+    def test_drag_direction_passthrough_while_listening(self) -> None:
+        self.machine.seed("listening", 0.0)
+        event = make_internal("pinch_drag_direction", 0.4)
+        event.metadata = {"direction": "right", "axis": "x", "axis_value": 42.0}
+        events = self.machine.handle_internal(event)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].name, "drag_direction")
+        self.assertEqual(events[0].metadata["direction"], "right")
+
+    def test_drag_update_passthrough_while_listening(self) -> None:
+        self.machine.seed("listening", 0.0)
+        event = make_internal("pinch_drag_update", 0.4)
+        event.metadata = {"direction": "up", "axis": "y", "axis_value": 52.0, "delta_value": 11.0}
+        events = self.machine.handle_internal(event)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].name, "drag_update")
+        self.assertEqual(events[0].metadata["delta_value"], 11.0)
+
 
 if __name__ == "__main__":
     unittest.main()

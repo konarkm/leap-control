@@ -21,6 +21,9 @@ class ActionSpec:
     key: str | None = None
     modifiers: list[str] = field(default_factory=list)
     key_action: str = "tap"
+    scroll_axis: str = "vertical"
+    scroll_scale: float = 1.0
+    scroll_natural: bool = True
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ActionSpec":
@@ -30,6 +33,9 @@ class ActionSpec:
             key=payload.get("key"),
             modifiers=list(payload.get("modifiers", [])),
             key_action=str(payload.get("key_action", "tap")),
+            scroll_axis=str(payload.get("scroll_axis", "vertical")),
+            scroll_scale=float(payload.get("scroll_scale", 1.0)),
+            scroll_natural=bool(payload.get("scroll_natural", True)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -52,6 +58,13 @@ class CalibrationProfile:
     pinch_hold_dwell_s: float = 1.00
     pinch_tap_min_s: float = 0.03
     pinch_tap_max_s: float = 1.00
+    drag_deadzone_mm: float = 24.0
+    drag_axis_lock_ratio: float = 1.35
+    drag_update_step_mm: float = 0.4
+    drag_update_min_interval_s: float = 0.008
+    drag_smoothing_alpha: float = 0.55
+    drag_reverse_deadzone_mm: float = 6.0
+    drag_max_delta_mm: float = 3.0
     swipe_cooldown_s: float = 0.60
     armed_timeout_s: float = 4.00
     flash_duration_s: float = 0.80
@@ -166,6 +179,14 @@ def default_routes() -> dict[str, list[ActionSpec]]:
         "confirm": [ActionSpec(type="key_event", key="return", key_action="tap")],
         "ptt_start": [ActionSpec(type="key_event", key="right_control", key_action="down")],
         "ptt_end": [ActionSpec(type="key_event", key="right_control", key_action="up")],
+        "drag_update": [
+            ActionSpec(
+                type="scroll_event",
+                scroll_axis="vertical",
+                scroll_scale=15.0,
+                scroll_natural=True,
+            )
+        ],
     }
 
 

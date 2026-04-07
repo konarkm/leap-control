@@ -78,6 +78,14 @@ class InteractionStateMachine:
             self._transition("idle", event.timestamp)
             return output
 
+        if self.state == "listening" and event.name == "pinch_drag_direction":
+            output.append(self._public("drag_direction", event, phase="update", metadata=event.metadata))
+            return output
+
+        if self.state == "listening" and event.name == "pinch_drag_update":
+            output.append(self._public("drag_update", event, phase="update", metadata=event.metadata))
+            return output
+
         return output
 
     def handle_voice_update(self, payload: dict[str, Any], now: float) -> None:
