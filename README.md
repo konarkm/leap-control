@@ -1,38 +1,64 @@
-# Leap Control v1
+# Leap Control
 
-Python-first gesture + voice controller for Ultraleap/Leap Motion on macOS.
+Gesture-first local controller for Ultraleap / Leap Motion on macOS.
 
-## What it does
+This repo is an experiment in using pinch, pinch-hold, and pinch-drag as a lightweight control layer on top of the Mac. The current implementation is intentionally simple and practical:
 
-- Reads live `LeapC` hand-tracking frames from the installed Ultraleap runtime
-- Recognizes a small control-oriented gesture vocabulary:
-  - `ptt_start`
-  - `ptt_end`
-  - `confirm`
-  - `hand_present`
-  - `hand_lost`
-- Maintains a simple pinch-first controller state machine
-- Shows a minimal always-on-top HUD
-- Exposes a localhost websocket API for external voice feeds and future adapters
-- Supports guided calibration and offline replay fixtures
-- Writes persistent JSONL logs for frames, recognizer events, public events, and debug metrics
+- short pinch -> `Enter`
+- long pinch hold -> hold `right_control`
+- vertical pinch-drag -> natural scrolling
+
+It also exposes a small localhost websocket API so a future voice layer, CLI tool, or app adapter can subscribe to gesture events.
+
+## Current State
+
+Implemented:
+
+- live Ultraleap frame ingestion through a small C helper plus Python controller
+- pinch tap vs pinch hold recognition
+- latched pinch-drag with axis locking
+- continuous vertical scrolling from held-pinch drag
+- localhost websocket debug/event stream
+- JSONL event logging
+- offline tests for recognizer, state machine, and action routing
+
+Not production-ready:
+
+- the Tk HUD is not reliable on macOS yet
+- no packaged installer or launch agent
+- gesture vocabulary is still intentionally small
 
 ## Requirements
 
-- macOS with Ultraleap Hand Tracking installed
+- macOS
+- Ultraleap Hand Tracking installed
 - Python 3.13
-- PyObjC and `websockets` available in the active Python
+- PyObjC
+- `websockets`
 
-The implementation uses `ctypes` for `LeapC`, so it does not depend on the bundled
-`leapc_cffi` CPython 3.12 module.
+The tracking stack uses `LeapC` directly and does not depend on the bundled `leapc_cffi` wheel.
 
-## Commands
+## Quick Start
 
-Run the controller:
+Run the live controller:
 
 ```bash
-python3 -m leapcontrol run
+python3 -m leapcontrol run --no-overlay
 ```
+
+In another terminal, watch the debug stream:
+
+```bash
+python3 -m leapcontrol watch-debug
+```
+
+Current default gestures:
+
+- short pinch: sends `Enter`
+- long pinch hold: holds `right_control`
+- held pinch + vertical drag: scrolls with natural direction
+
+## Calibration and Replay
 
 Run guided calibration:
 
@@ -43,38 +69,30 @@ python3 -m leapcontrol calibrate --profile default
 Replay a saved fixture:
 
 ```bash
-python3 -m leapcontrol replay ~/Library/Application\ Support/LeapControl/fixtures/<session>/<fixture>.json
+python3 -m leapcontrol replay ~/Library/Application\\ Support/LeapControl/fixtures/<session>/<fixture>.json
 ```
 
-Watch live debug output:
+Record and analyze a raw session:
 
 ```bash
-python3 -m leapcontrol watch-debug
-```
-
-Send external voice updates into the live controller:
-
-```bash
-python3 -m leapcontrol voice session_started
-python3 -m leapcontrol voice partial --text "draft transcript"
-python3 -m leapcontrol voice final --text "final transcript" --options OptionA OptionB
-python3 -m leapcontrol voice cancelled
+python3 -m leapcontrol record-session --duration 12
+python3 -m leapcontrol analyze-session ~/Library/Application\\ Support/LeapControl/fixtures/<session>/raw_session.json
 ```
 
 ## Local API
 
-The controller listens on:
+Default websocket endpoint:
 
 - `ws://127.0.0.1:8765`
 
-Outbound messages:
+Outbound message types:
 
 - `gesture_event`
 - `controller_state`
 - `hud_state`
 - `system_event`
 
-Inbound messages:
+Inbound message types:
 
 - `voice_state`
 - `debug_command`
@@ -90,20 +108,20 @@ Example inbound payload:
 }
 ```
 
-## Config and data
+## Local Data
 
 Default app home:
 
 - `~/Library/Application Support/LeapControl`
 
-Generated files:
+Generated local files:
 
 - `config.json`
 - `profiles/<name>.json`
 - `fixtures/<session>/*.json`
 - `logs/events.jsonl`
 
-Set a custom app home for development:
+Use a separate app home for development:
 
 ```bash
 export LEAPCONTROL_HOME=/tmp/leapcontrol-dev
@@ -111,8 +129,8 @@ export LEAPCONTROL_HOME=/tmp/leapcontrol-dev
 
 ## Tests
 
-Run the software-only tests:
+Run the software-only test suite:
 
 ```bash
-python3 -m unittest discover -s /Users/konark/code/leap/tests -v
+python3 -m unittest discover -s tests -v
 ```
