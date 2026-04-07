@@ -35,8 +35,24 @@ Not production-ready:
 - Python 3.13
 - PyObjC
 - `websockets`
+- Xcode Command Line Tools / `clang`
 
 The tracking stack uses `LeapC` directly and does not depend on the bundled `leapc_cffi` wheel.
+
+## Setup
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/konarkm/leap-control.git
+cd leap-control
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -U pip
+python3 -m pip install -r requirements.txt
+```
+
+The live sensor path uses a small C helper that is built automatically on first run from `src/leap_stream_helper.c`, so you do not need a separate manual build step.
 
 ## Quick Start
 
@@ -134,3 +150,7 @@ Run the software-only test suite:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## License
+
+[MIT](LICENSE)
